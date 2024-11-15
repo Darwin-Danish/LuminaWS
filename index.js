@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const axios = require('axios');
 
 // Replace with your MongoDB connection string
-const MONGO_URI = '';
+const MONGO_URI = "";
 const GEMINI_API_KEY = '';
 const API_URL = 'https://gemini-openai-proxy.zuisong.workers.dev/';
 
