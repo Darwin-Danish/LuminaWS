@@ -29,7 +29,7 @@ jobs:
 
       # Step 4: Install dependencies if not cached
       - name: Install Dependencies
-        run: npm install whatsapp-web.js qrcode-terminal mongoose axios ytdl-core ytsr
+        run: npm install whatsapp-web.js mongoose axios ytdl-core yt-search qrcode-terminal wwebjs-mongo
 
       # Step 5: Set environment variables
       - name: Set Environment Variables
