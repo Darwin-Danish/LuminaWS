@@ -1,6 +1,7 @@
-const { Client } = require('whatsapp-web.js');
-const { dlAudio } = require('new-youtube-exec');
-const yt = require('youtube-search-without-api-key');
+import { Client, MessageMedia } from 'whatsapp-web.js';
+import * as yt from 'youtube-search-without-api-key';
+import { dlAudio } from 'new-youtube-exec'; // If using CommonJS, try dynamic import() instead
+
 const fs = require('fs');
 
 // Initialize the WhatsApp client
