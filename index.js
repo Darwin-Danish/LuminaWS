@@ -1,17 +1,15 @@
-const { Client, MessageMedia, LocalAuth } = require('whatsapp-web.js');
+const { Client, MessageMedia, RemoteAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const mongoose = require('mongoose');
-const axios = require('axios');
-const ytdl = require('ytdl-core'); // To download YouTube audio
+const axios = require('axios');// To download YouTube audio
 const fs = require('fs');
-const ytsr = require('ytsr'); // YouTube Search API
+const ytSearch = require('yt-search'); // YouTube Search package
+const MongoStore = require('wwebjs-mongo'); // MongoDB Store for session storage
 
 // Replace with your MongoDB connection string
 const MONGO_URI = "mongodb+srv://admin:admin@luminamovie.eu8qp.mongodb.net/?retryWrites=true&w=majority&appName=LuminaMovie";
-const GEMINI_API_KEY = '';
-const API_URL = 'https://gemini-openai-proxy.zuisong.workers.dev/';
 
-// MongoDB schema for storing sessions
+// MongoDB schema for storing sessions (if needed for custom management)
 const sessionSchema = new mongoose.Schema({
     sessionId: { type: String, required: true, unique: true },
     sessionData: { type: Object, required: true },
@@ -24,11 +22,13 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('Failed to connect to MongoDB:', err));
 
-// Initialize WhatsApp client with session management
+// Initialize WhatsApp client with session management using RemoteAuth and MongoStore
+const store = new MongoStore({ mongoose: mongoose });
+
 const client = new Client({
-    authStrategy: new LocalAuth({
-        clientId: 'whatsapp-bot', // Unique identifier for this client
-        dataPath: './auth_data', // Local folder to cache auth files temporarily
+    authStrategy: new RemoteAuth({
+        store: store, // Store session in MongoDB
+        backupSyncIntervalMs: 300000, // Sync every 5 minutes
     }),
 });
 
@@ -40,13 +40,8 @@ client.on('qr', (qr) => {
 client.on('authenticated', async (session) => {
     console.log('Authenticated successfully.');
     try {
-        // Save session data to MongoDB
-        const existingSession = await Session.findOneAndUpdate(
-            { sessionId: 'whatsapp-session' },
-            { sessionData: session },
-            { upsert: true, new: true }
-        );
-        console.log('Session saved:', existingSession);
+        // Save session data to MongoDB (MongoStore will handle this)
+        console.log('Session authenticated and stored!');
     } catch (error) {
         console.error('Error saving session to MongoDB:', error);
     }
@@ -60,13 +55,13 @@ client.on('message', async (message) => {
     try {
         // Check if the message starts with "play"
         if (message.body.toLowerCase().startsWith('play')) {
-            const songTitle = message.body.slice(4).trim() + " Music";  // Add "Music" at the end for the search
+            const songTitle = message.body.slice(4).trim();  // Extract the song title
 
-            // Search for the song on YouTube
-            const searchResults = await ytsr(songTitle, { limit: 1 });
+            // Search for the song on YouTube using yt-search
+            const result = await ytSearch(songTitle);
 
-            if (searchResults.items.length > 0) {
-                const videoUrl = searchResults.items[0].url;
+            if (result.videos.length > 0) {
+                const videoUrl = result.videos[0].url;  // Get the URL of the first search result
 
                 // Download the audio using ytdl (YouTube downloader)
                 const stream = ytdl(videoUrl, { filter: 'audioonly' });
@@ -83,7 +78,6 @@ client.on('message', async (message) => {
 
                     // Optionally, delete the file after sending
                     fs.unlinkSync(filePath);
-                    process.exit(0)
                 });
             } else {
                 message.reply('Sorry, I couldn\'t find that music!');
@@ -95,22 +89,5 @@ client.on('message', async (message) => {
     }
 });
 
-// Load session from MongoDB before initializing the client
-async function startClient() {
-    try {
-        const savedSession = await Session.findOne({ sessionId: 'whatsapp-session' });
-        if (savedSession) {
-            console.log('Restoring session from MongoDB...');
-            client.options.authStrategy = new LocalAuth({
-                clientId: 'whatsapp-bot',
-                dataPath: './auth_data', // Fallback local cache
-            });
-        }
-    } catch (error) {
-        console.error('Error loading session from MongoDB:', error);
-    }
-
-    client.initialize();
-}
-
-startClient();
+// Initialize client
+client.initialize();
