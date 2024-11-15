@@ -2,6 +2,9 @@ const { Client, MessageMedia, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const mongoose = require('mongoose');
 const axios = require('axios');
+const ytdl = require('ytdl-core'); // To download YouTube audio
+const fs = require('fs');
+const ytsr = require('ytsr'); // YouTube Search API
 
 // Replace with your MongoDB connection string
 const MONGO_URI = "mongodb+srv://admin:admin@luminamovie.eu8qp.mongodb.net/?retryWrites=true&w=majority&appName=LuminaMovie";
@@ -55,56 +58,35 @@ client.on('ready', () => {
 
 client.on('message', async (message) => {
     try {
-        // Check if the message starts with "lumina"
-        if (message.body.toLowerCase().startsWith('lumina')) {
-            const question = message.body.slice(7).trim();
+        // Check if the message starts with "play"
+        if (message.body.toLowerCase().startsWith('play')) {
+            const songTitle = message.body.slice(4).trim() + " Music";  // Add "Music" at the end for the search
 
-            if (message.hasMedia) {
-                // Download the media
-                const media = await message.downloadMedia();
-                if (media.mimetype.startsWith('image')) {
-                    const payload = {
-                        model: "gpt-4-vision-preview",
-                        messages: [
-                            {
-                                role: "user",
-                                content: [
-                                    { type: "text", text: "What do you see in this picture?" },
-                                    { type: "image_url", image_url: { url: media.data } },
-                                ],
-                            },
-                        ],
-                        stream: false,
-                    };
+            // Search for the song on YouTube
+            const searchResults = await ytsr(songTitle, { limit: 1 });
 
-                    const response = await axios.post(API_URL, payload, {
-                        headers: {
-                            Authorization: `Bearer ${GEMINI_API_KEY}`,
-                            'Content-Type': 'application/json',
-                        },
-                    });
+            if (searchResults.items.length > 0) {
+                const videoUrl = searchResults.items[0].url;
 
-                    const aiResponse = response.data.choices[0]?.message?.content;
-                    message.reply(aiResponse || 'Unable to process the image.');
-                } else {
-                    message.reply('Please send an image for analysis.');
-                }
-            } else {
-                const payload = {
-                    model: "gpt-3.5-turbo",
-                    messages: [{ role: "user", content: question }],
-                    temperature: 0.7,
-                };
+                // Download the audio using ytdl (YouTube downloader)
+                const stream = ytdl(videoUrl, { filter: 'audioonly' });
 
-                const response = await axios.post(API_URL, payload, {
-                    headers: {
-                        Authorization: `Bearer ${GEMINI_API_KEY}`,
-                        'Content-Type': 'application/json',
-                    },
+                // Save the audio to a file
+                const filePath = './music.mp3';
+                const file = fs.createWriteStream(filePath);
+                stream.pipe(file);
+
+                file.on('finish', async () => {
+                    // Send the music file via WhatsApp
+                    const media = MessageMedia.fromFilePath(filePath);
+                    await message.reply('Here is your music! 🎶', { media });
+
+                    // Optionally, delete the file after sending
+                    fs.unlinkSync(filePath);
+                    process.exit(0)
                 });
-
-                const aiResponse = response.data.choices[0]?.message?.content;
-                message.reply(aiResponse || 'Unable to process your question.');
+            } else {
+                message.reply('Sorry, I couldn\'t find that music!');
             }
         }
     } catch (error) {
