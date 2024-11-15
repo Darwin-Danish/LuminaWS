@@ -1,5 +1,5 @@
 const { Client } = require('whatsapp-web.js');
-const { dlAudio } = require('youtube-exec');
+const { dlAudio } = require('new-youtube-exec');
 const yt = require('youtube-search-without-api-key');
 const fs = require('fs');
 
