@@ -29,7 +29,7 @@ jobs:
 
       # Step 4: Install dependencies if not cached
       - name: Install Dependencies
-        run: npm install whatsapp-web.js youtube-search-without-api-key youtube-exec fs
+        run: npm install whatsapp-web.js youtube-search-without-api-key new-youtube-exec fs
 
       # Step 5: Set environment variables
       - name: Set Environment Variables
